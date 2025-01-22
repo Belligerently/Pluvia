@@ -276,6 +276,7 @@ object PrefManager {
             setPref(APP_STAGING_PATH, value)
         }
 
+    // TODO encrypt this with KeyStore
     private val ACCESS_TOKEN = stringPreferencesKey("access_token")
     var accessToken: String
         get() = getPref(ACCESS_TOKEN, "")
@@ -283,6 +284,7 @@ object PrefManager {
             setPref(ACCESS_TOKEN, value)
         }
 
+    // TODO encrypt this with KeyStore
     private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     var refreshToken: String
         get() = getPref(REFRESH_TOKEN, "")
@@ -300,18 +302,11 @@ object PrefManager {
             }
         }
 
-    private val REMEMBER_PASSWORD = booleanPreferencesKey("remember_password")
-    var rememberPassword: Boolean
-        get() = getPref(REMEMBER_PASSWORD, false)
+    private val REMEMBER_SESSION = booleanPreferencesKey("remember_session")
+    var rememberSession: Boolean
+        get() = getPref(REMEMBER_SESSION, false)
         set(value) {
-            setPref(REMEMBER_PASSWORD, value)
-        }
-
-    private val PASSWORD = stringPreferencesKey("password")
-    var password: String
-        get() = getPref(PASSWORD, "")
-        set(value) {
-            setPref(PASSWORD, value)
+            setPref(REMEMBER_SESSION, value)
         }
 
     /**

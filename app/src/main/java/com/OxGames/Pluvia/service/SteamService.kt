@@ -750,7 +750,7 @@ class SteamService : Service(), IChallengeUrlChanged {
             accessToken: String? = null,
             refreshToken: String? = null,
             password: String? = null,
-            shouldRememberPassword: Boolean = false,
+            shouldRememberSession: Boolean = false,
             twoFactorAuth: String? = null,
             emailAuth: String? = null,
             clientId: Long? = null,
@@ -759,37 +759,44 @@ class SteamService : Service(), IChallengeUrlChanged {
 
             // Sensitive info, only print in DEBUG build.
             if (BuildConfig.DEBUG) {
+                fun parseJsonWebToken(token: String, name: String) {
+                    val tokenComponents = token.split(".")
+                    var base64 = tokenComponents[1].replace('-', '+').replace('_', '/')
+                    if (base64.length % 4 != 0) {
+                        base64 += "=".repeat(4 - base64.length % 4)
+                    }
+                    val payloadBytes = java.util.Base64.getDecoder().decode(base64)
+                    val payloadString = payloadBytes.decodeToString()
+                    val json = kotlinx.serialization.json.Json { prettyPrint = true }
+                    val jsonElement = json.parseToJsonElement(payloadString)
+                    val formatted = json.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), jsonElement)
+                    Timber.d("$name: $formatted\n")
+                }
+
+                if (accessToken != null && refreshToken != null) {
+                    parseJsonWebToken(accessToken, "AccessToken")
+                    parseJsonWebToken(refreshToken, "RefreshToken")
+                }
+
                 Timber.d(
-                    "Login Information\n\tUsername: " +
-                        "$username\n\tAccessToken: " +
-                        "$accessToken\n\tRefreshToken: " +
-                        "$refreshToken\n\tPassword: " +
-                        "$password\n\tShouldRememberPass: " +
-                        "$shouldRememberPassword\n\tTwoFactorAuth: " +
-                        "$twoFactorAuth\n\tEmailAuth: $emailAuth",
+                    "Login Information\n\t" +
+                        "Username: $username\n\t" +
+                        "AccessToken:$accessToken\n\t" +
+                        "RefreshToken: $refreshToken\n\t" +
+                        "Password: $password\n\t" +
+                        "ShouldRememberSession:$shouldRememberSession\n\t" +
+                        "TwoFactorAuth: $twoFactorAuth\n\t" +
+                        "EmailAuth: $emailAuth",
                 )
             }
 
             PrefManager.username = username
 
-            if ((password != null && shouldRememberPassword) || refreshToken != null) {
-                if (password != null) {
-                    PrefManager.password = password
-                }
-
-                if (accessToken != null) {
-                    PrefManager.password = ""
-                    PrefManager.accessToken = accessToken
-                }
-
-                if (refreshToken != null) {
-                    PrefManager.password = ""
-                    PrefManager.refreshToken = refreshToken
-                }
-
-                if (clientId != null) {
-                    PrefManager.clientId = clientId
-                }
+            if ((password != null && shouldRememberSession) || refreshToken != null) {
+                // Set some preferences if not null.
+                accessToken?.let { PrefManager.accessToken = it }
+                refreshToken?.let { PrefManager.refreshToken = it }
+                clientId?.let { PrefManager.clientId = it }
             }
 
             isLoggingIn = true
@@ -802,13 +809,8 @@ class SteamService : Service(), IChallengeUrlChanged {
                     // source: https://github.com/steevp/UpdogFarmer/blob/8f2d185c7260bc2d2c92d66b81f565188f2c1a0e/app/src/main/java/com/steevsapps/idledaddy/LoginActivity.java#L166C9-L168C104
                     // more: https://github.com/winauth/winauth/issues/368#issuecomment-224631002
                     username = SteamUtils.removeSpecialChars(username).trim(),
-                    password = if (password != null) {
-                        SteamUtils.removeSpecialChars(password)
-                            .trim()
-                    } else {
-                        null
-                    },
-                    shouldRememberPassword = shouldRememberPassword,
+                    password = password?.let { SteamUtils.removeSpecialChars(it).trim() },
+                    shouldRememberPassword = shouldRememberSession,
                     twoFactorCode = twoFactorAuth,
                     authCode = emailAuth,
                     accessToken = refreshToken,
@@ -824,16 +826,18 @@ class SteamService : Service(), IChallengeUrlChanged {
         suspend fun startLoginWithCredentials(
             username: String,
             password: String,
-            shouldRememberPassword: Boolean,
+            shouldRememberSession: Boolean,
             authenticator: IAuthenticator,
         ) = withContext(Dispatchers.IO) {
             Timber.i("Logging in via credentials.")
 
             instance!!.steamClient?.let { steamClient ->
+                PrefManager.rememberSession = shouldRememberSession
+
                 val authDetails = AuthSessionDetails().apply {
                     this.username = username.trim()
                     this.password = password.trim()
-                    this.persistentSession = shouldRememberPassword
+                    this.persistentSession = PrefManager.rememberSession
                     this.authenticator = authenticator
                     this.deviceFriendlyName = SteamUtils.getMachineName(instance!!)
                 }
@@ -850,7 +854,7 @@ class SteamService : Service(), IChallengeUrlChanged {
                         username = pollResult.accountName,
                         accessToken = pollResult.accessToken,
                         refreshToken = pollResult.refreshToken,
-                        shouldRememberPassword = shouldRememberPassword,
+                        shouldRememberSession = PrefManager.rememberSession,
                     )
                 }
 
@@ -1191,14 +1195,16 @@ class SteamService : Service(), IChallengeUrlChanged {
 
         var isAutoLoggingIn = false
 
-        if (PrefManager.username.isNotEmpty() && (PrefManager.refreshToken.isNotEmpty() || PrefManager.password.isNotEmpty())) {
+        // TODO we do not want to auto login if we have rememberSession false
+        if (PrefManager.rememberSession && PrefManager.username.isNotEmpty() && PrefManager.refreshToken.isNotEmpty()) {
             isAutoLoggingIn = true
+
+            // We should handle refreshing the token when it nears expiration
 
             login(
                 username = PrefManager.username,
                 refreshToken = PrefManager.refreshToken,
-                password = PrefManager.password.ifEmpty { null },
-                shouldRememberPassword = PrefManager.password.isNotEmpty(),
+                shouldRememberSession = PrefManager.rememberSession,
             )
         }
 

@@ -77,7 +77,7 @@ fun UserLoginScreen(
         onUsername = viewModel::setUsername,
         onPassword = viewModel::setPassword,
         onShowLoginScreen = viewModel::onShowLoginScreen,
-        onRememberPassword = viewModel::setRememberPass,
+        onRememberSession = viewModel::setRememberSession,
         onCredentialLogin = viewModel::onCredentialLogin,
         onTwoFactorLogin = viewModel::submit,
         onQrRetry = viewModel::onQrRetry,
@@ -92,7 +92,7 @@ private fun UserLoginScreenContent(
     onUsername: (String) -> Unit,
     onPassword: (String) -> Unit,
     onShowLoginScreen: (LoginScreen) -> Unit,
-    onRememberPassword: (Boolean) -> Unit,
+    onRememberSession: (Boolean) -> Unit,
     onCredentialLogin: () -> Unit,
     onTwoFactorLogin: () -> Unit,
     onQrRetry: () -> Unit,
@@ -176,8 +176,8 @@ private fun UserLoginScreenContent(
                                 onUsername = onUsername,
                                 password = userLoginState.password,
                                 onPassword = onPassword,
-                                rememberPassword = userLoginState.rememberPass,
-                                onRememberPassword = onRememberPassword,
+                                rememberSession = userLoginState.rememberSession,
+                                onRememberSession = onRememberSession,
                                 onLoginBtnClick = onCredentialLogin,
                             )
                         }
@@ -238,8 +238,8 @@ private fun UsernamePassword(
     onUsername: (String) -> Unit,
     password: String,
     onPassword: (String) -> Unit,
-    rememberPassword: Boolean,
-    onRememberPassword: (Boolean) -> Unit,
+    rememberSession: Boolean,
+    onRememberSession: (Boolean) -> Unit,
     onLoginBtnClick: () -> Unit,
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
@@ -281,10 +281,10 @@ private fun UsernamePassword(
         Row(horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
-                    checked = rememberPassword,
-                    onCheckedChange = onRememberPassword,
+                    checked = rememberSession,
+                    onCheckedChange = onRememberSession,
                 )
-                Text(text = "Remember me")
+                Text(text = "Remember session")
             }
             Spacer(modifier = Modifier.width(32.dp))
             ElevatedButton(
@@ -316,7 +316,7 @@ private fun Preview_UserLoginScreen(
                 userLoginState = state,
                 onUsername = { },
                 onPassword = { },
-                onRememberPassword = { },
+                onRememberSession = { },
                 onCredentialLogin = { },
                 onTwoFactorLogin = { },
                 onQrRetry = { },

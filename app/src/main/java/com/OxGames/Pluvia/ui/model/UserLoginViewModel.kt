@@ -3,6 +3,7 @@ package com.OxGames.Pluvia.ui.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.OxGames.Pluvia.PluviaApp
+import com.OxGames.Pluvia.PrefManager
 import com.OxGames.Pluvia.enums.LoginResult
 import com.OxGames.Pluvia.enums.LoginScreen
 import com.OxGames.Pluvia.events.AndroidEvent
@@ -169,16 +170,24 @@ class UserLoginViewModel : ViewModel() {
         PluviaApp.events.on<SteamEvent.QrAuthEnded, Unit>(onQrAuthEnded)
         PluviaApp.events.on<SteamEvent.LoggedOut, Unit>(onLoggedOut)
 
-        val isLoggedIn = SteamService.isLoggedIn
         val isSteamConnected = SteamService.isConnected
+        _loginState.update {
+            it.copy(
+                isSteamConnected = isSteamConnected,
+                rememberSession = PrefManager.rememberSession,
+            )
+        }
+
+        val isLoggedIn = SteamService.isLoggedIn
         Timber.d("Logged in? $isLoggedIn")
+
         if (isLoggedIn) {
             _loginState.update {
-                it.copy(isSteamConnected = isSteamConnected, isLoggingIn = true, isQrFailed = false, loginResult = LoginResult.Success)
+                it.copy(isLoggingIn = true, isQrFailed = false, loginResult = LoginResult.Success)
             }
         } else {
             _loginState.update {
-                it.copy(isSteamConnected = isSteamConnected, isLoggingIn = false, isQrFailed = false, loginResult = LoginResult.Failed)
+                it.copy(isLoggingIn = false, isQrFailed = false, loginResult = LoginResult.Failed)
             }
         }
     }
@@ -208,7 +217,7 @@ class UserLoginViewModel : ViewModel() {
                 SteamService.startLoginWithCredentials(
                     username = username,
                     password = password,
-                    shouldRememberPassword = rememberPass,
+                    shouldRememberSession = rememberSession,
                     authenticator = authenticator,
                 )
             }
@@ -253,9 +262,9 @@ class UserLoginViewModel : ViewModel() {
         }
     }
 
-    fun setRememberPass(rememberPass: Boolean) {
+    fun setRememberSession(value: Boolean) {
         _loginState.update { currentState ->
-            currentState.copy(rememberPass = rememberPass)
+            currentState.copy(rememberSession = value)
         }
     }
 
