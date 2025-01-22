@@ -11,15 +11,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
@@ -38,11 +42,9 @@ import com.OxGames.Pluvia.ui.component.topbar.BackButton
 import com.OxGames.Pluvia.ui.data.FriendsState
 import com.OxGames.Pluvia.ui.model.FriendsViewModel
 import com.OxGames.Pluvia.ui.theme.PluviaTheme
-import `in`.dragonbra.javasteam.types.SteamID
-import kotlinx.coroutines.launch
 
 @Composable
-fun HomeFriendsScreen(
+fun FriendsScreen(
     viewModel: FriendsViewModel = hiltViewModel(),
     onSettings: () -> Unit,
     onLogout: () -> Unit,
@@ -69,7 +71,7 @@ private fun FriendsScreenContent(
 ) {
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val navigator = rememberListDetailPaneScaffoldNavigator<SteamID>()
+    val navigator = rememberListDetailPaneScaffoldNavigator<SteamFriend>()
 
     // Pretty much the same as 'NavigableListDetailPaneScaffold'
     BackHandler(navigator.canNavigateBack(BackNavigationBehavior.PopUntilContentChange)) {
@@ -101,28 +103,42 @@ private fun FriendsScreenContent(
                         paddingValues = paddingValues,
                         list = state.friendsList,
                         onItemClick = {
-                            scope.launch {
-                                snackbarHost.showSnackbar("TODO Chat")
-                                // navigator.navigateTo(
-                                //     ListDetailPaneScaffoldRole.Detail,
-                                //     SteamID(1L))
-                            }
+                            navigator.navigateTo(
+                                ListDetailPaneScaffoldRole.Detail,
+                                it,
+                            )
                         },
                     )
                 }
             }
         },
         detailPane = {
-            val value = navigator.currentDestination?.content ?: SteamID()
+            val value = navigator.currentDestination?.content ?: SteamFriend(0)
             AnimatedPane {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                     content = {
-                        if (value.convertToUInt64() == 0L) {
-                            Text("Choose something from Friends")
+                        if (value.id == 0L) {
+                            Surface(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shadowElevation = 8.dp,
+                            ) {
+                                Text(
+                                    modifier = Modifier.padding(24.dp),
+                                    text = "Select a friend to message",
+                                )
+                            }
                         } else {
-                            Text("Hi Friend $value")
+                            ChatScreen(
+                                steamFriend = value,
+                                onBack = {
+                                    // We're still in Adaptive navigation.
+                                    navigator.navigateBack()
+                                },
+                            )
                         }
                     },
                 )
@@ -136,7 +152,7 @@ private fun FriendsScreenContent(
 private fun FriendsListPane(
     paddingValues: PaddingValues,
     list: Map<String, List<SteamFriend>>,
-    onItemClick: () -> Unit,
+    onItemClick: (SteamFriend) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -158,7 +174,9 @@ private fun FriendsListPane(
                 FriendItem(
                     modifier = Modifier.animateItem(),
                     friend = item,
-                    onClick = onItemClick,
+                    onClick = {
+                        onItemClick(item)
+                    },
                 )
             }
         }
